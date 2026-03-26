@@ -6,6 +6,8 @@ import tempfile, shutil, os, zipfile, dataclasses
 
 from backend.core.vector_store import VectorStore
 from pydantic import BaseModel
+from backend.core.rag import RAGPipeline
+from fastapi.responses import StreamingResponse
 
 # Add this at the top with other imports
 store = VectorStore()
@@ -80,3 +82,25 @@ async def parse_local_directory(req: ParseRequest):
         "total_files": len(parsed_files),
         "files": [_to_dict(pf) for pf in parsed_files]
     }
+
+# Add with other top-level instances
+rag = RAGPipeline()
+
+class AskRequest(BaseModel):
+    question: str
+    top_k: int = 5
+    stream: bool = False
+
+@router.post("/ask")
+async def ask_question(req: AskRequest):
+    """Ask a natural language question about the indexed codebase."""
+    if req.stream:
+        # Streaming response — tokens arrive live
+        def generate():
+            for token in rag.ask_stream(req.question, top_k=req.top_k):
+                yield token
+        return StreamingResponse(generate(), media_type="text/plain")
+
+    # Standard response
+    result = rag.ask(req.question, top_k=req.top_k)
+    return result
