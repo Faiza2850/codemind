@@ -9,6 +9,10 @@ from pydantic import BaseModel
 from backend.core.rag import RAGPipeline
 from fastapi.responses import StreamingResponse
 
+from backend.core.graph import CodeGraph
+
+graph_engine = CodeGraph()
+
 # Add this at the top with other imports
 store = VectorStore()
 
@@ -104,3 +108,25 @@ async def ask_question(req: AskRequest):
     # Standard response
     result = rag.ask(req.question, top_k=req.top_k)
     return result
+
+
+
+@router.post("/graph/build")
+async def build_graph(req: IndexRequest):
+    from backend.core.parser import CodeParser
+    parser = CodeParser()
+    parsed = parser.parse_directory(req.directory)
+    graph_engine.build(parsed)
+    graph_engine.save()
+    graph_engine.visualize()
+    return graph_engine.summary()
+
+@router.get("/graph/summary")
+async def graph_summary():
+    graph_engine.load()
+    return graph_engine.summary()
+
+@router.get("/graph/file")
+async def file_dependencies(path: str):
+    graph_engine.load()
+    return graph_engine.get_file_dependencies(path)
