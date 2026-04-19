@@ -16,9 +16,12 @@ from backend.core.vector_store import VectorStore
 from backend.core.graph import CodeGraph
 from backend.core.rag import RAGPipeline
 
+from backend.core.bug_detector import BugDetector
+from backend.core.architect import ArchitectureDiagramGenerator
+
 # ── Page config ───────────────────────────────────────────────
 st.set_page_config(
-    page_title="CODEMIND: Codebase Intelligence Engine",
+    page_title="Codebase Intelligence Engine",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -146,7 +149,7 @@ with st.sidebar:
     st.markdown("### 🔀 Navigate")
     page = st.radio(
         "Page",
-        ["💬 Ask", "🗺️ Dependency Graph", "📊 Complexity", "🗂️ File Explorer"],
+        ["💬 Ask", "🗺️ Dependency Graph", "📊 Complexity", "🗂️ File Explorer", "🐛 Bug Detection", "🏗️ Architecture"],
         label_visibility="collapsed",
     )
 
@@ -299,3 +302,58 @@ elif page == "🗂️ File Explorer":
                     st.markdown("**Imports:**")
                     for imp in pf.imports[:5]:
                         st.code(imp, language="python")
+# ══════════════════════════════════════════════════════════════
+# PAGE: Bug Detection
+# ══════════════════════════════════════════════════════════════
+elif page == "🐛 Bug Detection":
+    st.markdown("## 🐛 Bug Detection")
+
+    if st.button("🔍 Run Analysis", type="primary"):
+        with st.spinner("Analyzing code for bugs..."):
+            detector = BugDetector()
+            bugs     = detector.analyze_files(st.session_state.parsed_files)
+            st.session_state.bugs    = bugs
+            st.session_state.bug_sum = detector.summary(bugs)
+
+    if "bugs" in st.session_state:
+        s = st.session_state.bug_sum
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Issues", s["total"])
+        col2.metric("🔴 High",      s["high"])
+        col3.metric("🟡 Medium",    s["medium"])
+        col4.metric("🟢 Low",       s["low"])
+
+        st.markdown("---")
+        for bug in st.session_state.bugs:
+            icon = "🔴" if bug.severity == "high" else "🟡" if bug.severity == "medium" else "🟢"
+            with st.expander(f"{icon} {bug.message[:80]}..."):
+                st.markdown(f"**File:** `{bug.file_path}` line {bug.line}")
+                st.markdown(f"**Category:** {bug.category}")
+                st.markdown(f"**Severity:** {bug.severity}")
+                if bug.code_snippet:
+                    st.code(bug.code_snippet, language="python")
+
+# ══════════════════════════════════════════════════════════════
+# PAGE: Architecture
+# ══════════════════════════════════════════════════════════════
+elif page == "🏗️ Architecture":
+    st.markdown("## 🏗️ Architecture Diagram")
+
+    if st.button("🔨 Generate Diagram", type="primary"):
+        with st.spinner("Generating architecture diagram..."):
+            arch   = ArchitectureDiagramGenerator()
+            layers = arch.generate(st.session_state.parsed_files)
+            st.session_state.arch_layers = layers
+
+    diag_path = "data/indexes/architecture.png"
+    if os.path.exists(diag_path):
+        st.image(diag_path, use_container_width=True)
+
+    if "arch_layers" in st.session_state:
+        st.markdown("### 📐 Layer breakdown")
+        for layer, files in st.session_state.arch_layers.items():
+            color = {"api": "🔵", "core": "🟣", "models": "🩷",
+                     "data": "🩵", "utils": "🟢", "other": "⚫"}.get(layer, "⚪")
+            st.markdown(f"{color} **{layer.upper()}**")
+            for f in files:
+                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;`{f}`")

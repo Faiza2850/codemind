@@ -4,7 +4,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use("Agg")   # no display needed — saves to file
-from backend.core.parser import ParsedFile
 
 GRAPH_FILE = "data/indexes/graph.json"
 

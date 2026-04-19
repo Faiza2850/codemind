@@ -11,10 +11,16 @@ from fastapi.responses import StreamingResponse
 
 from backend.core.graph import CodeGraph
 
+from backend.core.bug_detector import BugDetector
+from backend.core.architect import ArchitectureDiagramGenerator
+import dataclasses
+
 graph_engine = CodeGraph()
 
 # Add this at the top with other imports
 store = VectorStore()
+bug_detector = BugDetector()
+architect    = ArchitectureDiagramGenerator()
 
 class IndexRequest(BaseModel):
     directory: str
@@ -130,3 +136,25 @@ async def graph_summary():
 async def file_dependencies(path: str):
     graph_engine.load()
     return graph_engine.get_file_dependencies(path)
+
+@router.post("/analyze/bugs")
+async def detect_bugs(req: IndexRequest):
+    """Run bug detection on a directory."""
+    from backend.core.parser import CodeParser
+    parser = CodeParser()
+    parsed = parser.parse_directory(req.directory)
+    bugs   = bug_detector.analyze_files(parsed)
+    summary = bug_detector.summary(bugs)
+    return {
+        "summary": summary,
+        "bugs": [dataclasses.asdict(b) for b in bugs],
+    }
+
+@router.post("/analyze/architecture")
+async def generate_architecture(req: IndexRequest):
+    """Generate architecture diagram for a directory."""
+    from backend.core.parser import CodeParser
+    parser = CodeParser()
+    parsed = parser.parse_directory(req.directory)
+    layers = architect.generate(parsed)
+    return {"layers": layers, "diagram_path": "data/indexes/architecture.png"}
