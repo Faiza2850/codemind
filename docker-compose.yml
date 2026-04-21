@@ -1,22 +1,47 @@
 version: "3.9"
 
 services:
+
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
+    container_name: codemind-backend
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/app/data
+      - ./data:/app/data          # persist indexes across restarts
+      - ./backend:/app            # live reload in dev
     env_file:
       - .env
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - TRANSFORMERS_OFFLINE=1
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
+    container_name: codemind-frontend
     ports:
       - "8501:8501"
+    volumes:
+      - ./data:/app/data          # shared data with backend
+      - ./frontend:/app
+      - ./backend:/backend        # frontend imports backend modules
     env_file:
       - .env
-    command: streamlit run app.py --server.port 8501
+    environment:
+      - PYTHONPATH=/backend
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  data:
