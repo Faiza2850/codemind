@@ -3,6 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.routes import router
 from dotenv import load_dotenv
 
+import os
+# Ensure data dirs exist on startup
+os.makedirs("data/uploads", exist_ok=True)
+os.makedirs("data/indexes", exist_ok=True)
+
 load_dotenv()
 
 app = FastAPI(
